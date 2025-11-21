@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Gestión de Recetas - API CRUD + Evidencias HTTP</title>
+
+<style>
+    body { font-family: Arial; background: #eef1f5; padding: 20px; }
+    h1 { text-align: center; }
+    .contenedor { max-width: 900px; margin: auto; }
+    .card { background: white; padding: 20px; border-radius: 10px; margin-top: 20px;
+            box-shadow: 0px 2px 10px rgba(0,0,0,0.1); }
+    input, textarea {
+        width: 100%; padding: 10px; border-radius: 6px;
+        border: 1px solid #ccc; margin-bottom: 15px;
+    }
+    button { padding: 10px 15px; border: none; border-radius: 6px; color: white;
+             background: #007bff; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    .btnEditar { background: orange; }
+    .btnEliminar { background: red; }
+    table { width: 100%; margin-top: 10px; border-collapse: collapse; }
+    td, th { padding: 10px; border-bottom: 1px solid #ddd; }
+    th { background: #007bff; color: white; }
+</style>
+
+</head>
+
+<body>
+
+<h1>Sistema CRUD de Recetas + Evidencias HTTP</h1>
+
+<div class="contenedor">
+
+    <!-- FORMULARIO -->
+    <div class="card">
+        <h2>Agregar / Editar Receta</h2>
+
+        <label>Nombre:</label>
+        <input type="text" id="nombre">
+
+        <label>Descripción:</label>
+        <textarea id="descripcion"></textarea>
+
+        <input type="hidden" id="idEditar">
+
+        <button onclick="guardarReceta()">Guardar</button>
+        <button onclick="limpiarFormulario()" style="background:#6c757d;">Limpiar</button>
+    </div>
+
+    <!-- TABLA DE RECETAS -->
+    <div class="card">
+        <h2>Lista de Recetas (GET)</h2>
+        <p style="font-size:14px;color:#555;">
+            🔍 *La recarga automática al abrir la página cumple el requisito de la práctica: realizar una petición GET.*
+        </p>
+
+        <table id="tablaRecetas">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Descripción</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <!-- TABLA ENDPOINTS -->
+    <div class="card">
+        <h2>Endpoints utilizados</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Método</th>
+                    <th>URL</th>
+                    <th>Descripción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>GET</td><td>/api/recetas</td><td>Lista todas las recetas</td></tr>
+                <tr><td>POST</td><td>/api/recetas</td><td>Agrega receta</td></tr>
+                <tr><td>PUT</td><td>/api/recetas/{id}</td><td>Edita receta</td></tr>
+                <tr><td>DELETE</td><td>/api/recetas/{id}</td><td>Elimina receta</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+const API_URL = "http://localhost:8082/api/recetas";
+
+// ==========================================================
+// 1. PETICIÓN GET OBLIGATORIA AL ABRIR (CON EVIDENCIAS)
+// ==========================================================
+document.addEventListener("DOMContentLoaded", cargarRecetas);
+
+// ==========================================================
+// GET - Cargar recetas con evidencia en consola
+// ==========================================================
+async function cargarRecetas() {
+    console.clear();
+    console.log("===== PETICIÓN GET OBLIGATORIA =====");
+
+    const inicio = performance.now();
+
+    const response = await fetch(API_URL);
+
+    const fin = performance.now();
+    const tiempo = (fin - inicio).toFixed(2);
+
+    // -------- Evidencias pedidas en la práctica --------
+    console.log("URL solicitada:", API_URL);
+    console.log("Método usado: GET");
+    console.log("Tiempo de respuesta:", tiempo + " ms");
+    console.log("Código de estado:", response.status);
+
+    console.log("----- RESPONSE HEADERS -----");
+    response.headers.forEach((v, k) => console.log(k + ": " + v));
+
+    console.log("----- CORS -----");
+    console.log("Access-Control-Allow-Origin:", response.headers.get("access-control-allow-origin"));
+
+    const data = await response.json();
+    console.log("Datos obtenidos:", data);
+
+    // Pintar tabla
+    let tbody = document.querySelector("#tablaRecetas tbody");
+    tbody.innerHTML = "";
+
+    data.forEach(r => {
+        tbody.innerHTML += `
+            <tr>
+                <td>${r.id}</td>
+                <td>${r.nombre}</td>
+                <td>${r.descripcion}</td>
+                <td>
+                    <button class="btnEditar" onclick="cargarParaEditar(${r.id}, '${r.nombre}', '${r.descripcion}')">Editar</button>
+                    <button class="btnEliminar" onclick="eliminarReceta(${r.id})">Eliminar</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// ==========================================================
+// POST o PUT (Guardar o editar)
+// ==========================================================
+async function guardarReceta() {
+    let nombre = document.getElementById("nombre").value;
+    let descripcion = document.getElementById("descripcion").value;
+    let id = document.getElementById("idEditar").value;
+
+    if (nombre.trim() === "") {
+        alert("El nombre es obligatorio");
+        return;
+    }
+
+    let receta = { nombre, descripcion };
+
+    let metodo = id ? "PUT" : "POST";
+    let url = id ? `${API_URL}/${id}` : API_URL;
+
+    await fetch(url, {
+        method: metodo,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(receta)
+    });
+
+    limpiarFormulario();
+    cargarRecetas();
+}
+
+// ==========================================================
+// Cargar en formulario para editar
+// ==========================================================
+function cargarParaEditar(id, nombre, descripcion) {
+    document.getElementById("nombre").value = nombre;
+    document.getElementById("descripcion").value = descripcion;
+    document.getElementById("idEditar").value = id;
+}
+
+// ==========================================================
+// DELETE
+// ==========================================================
+async function eliminarReceta(id) {
+    if (!confirm("¿Eliminar receta?")) return;
+
+    await fetch(`${API_URL}/${id}`, {
+        method: "DELETE"
+    });
+
+    cargarRecetas();
+}
+
+// ==========================================================
+// Limpiar formulario
+// ==========================================================
+function limpiarFormulario() {
+    document.getElementById("nombre").value = "";
+    document.getElementById("descripcion").value = "";
+    document.getElementById("idEditar").value = "";
+}
+</script>
+
+</body>
+</html>
